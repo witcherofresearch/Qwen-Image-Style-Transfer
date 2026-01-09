@@ -4,7 +4,7 @@ For the first time, we introduce  Content-Preserving Style Transfer functionalit
 
 Please note that our style transfer model is based on [Qwen-Image-Edit-2509](https://huggingface.co/Qwen/Qwen-Image-Edit-2509), and has to be used with [Qwen-Image-Lightning Lora](https://huggingface.co/lightx2v/Qwen-Image-Lightning), which we have converted to Diffsynth format for compatibility.  Otherwise, the model may suffer from either low-speed or low-quality. 
 
-
+![alt text](Introduction.png)
 
 
 ## Quick Start
@@ -28,13 +28,13 @@ Our training framework is based on [DiffSynth-Studio](https://github.com/modelsc
 
 ## Data
 
-We will soon open-source all our training data. 
+We will open-source all our training data if the stars exceed 200. 
 
 
 
 ## Citation
 
-We will release the tech report of QwenStyle. Please cite our work if you find it helpful.
+We release the tech report of [QwenStyle V1](https://openreview.net/forum?id=Cgb7JpOA5Q&referrer=%5Bthe%20profile%20of%20Shiwen%20Zhang%5D(%2Fprofile%3Fid%3D~Shiwen_Zhang1)). We are keep refining QwenStyle and will update new versions in the future.  Please light a star for our project and  cite our work if you find it helpful.
 
 ```bibtex
 @article{zhang2026qwenstyle,
