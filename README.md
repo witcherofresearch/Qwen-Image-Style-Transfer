@@ -16,6 +16,7 @@ Install DiffSynth
 ```
 git clone https://github.com/modelscope/DiffSynth-Studio.git  
 cd DiffSynth-Studio
+git checkout 11315d7
 pip install -e .
 ```
 
