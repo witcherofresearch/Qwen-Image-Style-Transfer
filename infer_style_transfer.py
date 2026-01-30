@@ -8,13 +8,21 @@ pipe = QwenImagePipeline.from_pretrained(
     torch_dtype=torch.bfloat16,
     device="cuda",
     model_configs=[
-        ModelConfig(model_id="Qwen/Qwen-Image-Edit-2509", origin_file_pattern="transformer/diffusion_pytorch_model*.safetensors"),
-        ModelConfig(model_id="Qwen/Qwen-Image", origin_file_pattern="text_encoder/model*.safetensors"),
-        ModelConfig(model_id="Qwen/Qwen-Image", origin_file_pattern="vae/diffusion_pytorch_model.safetensors"),
+        ModelConfig(model_id="Qwen/Qwen-Image-Edit-2509", 
+        download_source='huggingface',
+        origin_file_pattern="transformer/diffusion_pytorch_model*.safetensors"),
+        ModelConfig(model_id="Qwen/Qwen-Image-Edit-2509", 
+        download_source='huggingface',origin_file_pattern="text_encoder/model*.safetensors"),
+        ModelConfig(model_id="Qwen/Qwen-Image-Edit-2509", 
+        download_source='huggingface',origin_file_pattern="vae/diffusion_pytorch_model.safetensors"),
     ],
     tokenizer_config=None,
-    processor_config=ModelConfig(model_id="Qwen/Qwen-Image-Edit", origin_file_pattern="processor/"),
+    processor_config=ModelConfig(model_id="Qwen/Qwen-Image-Edit-2509", 
+    download_source='huggingface',origin_file_pattern="processor/"),
 )
+
+
+
 
 
 qwen_image_style_transfer_lora_model='./diffsynth_Qwen-Image-Edit-2509-Style-Transfer-V1.safetensors'
