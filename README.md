@@ -1,12 +1,18 @@
 # QwenStyle: Content-Preserving Style Transfer with Qwen-Image-Edit
 
-For the first time, we introduce  Content-Preserving Style Transfer functionality to Qwen-Image-Edit, which supports transferring various style cues from style reference to content reference while preserving the characteristics of content reference in high efficiency, i.e. 4 sampling steps. 
+For the first time, we introduce  Content-Preserving Style Transfer functionality to Qwen-Image-Edit, which supports transferring various style cues from style reference to content reference while preserving the characteristics of content reference in high efficiency, i.e. 4 sampling steps. ![alt text](Introduction.png)
 
-Please try our free online [demo](https://huggingface.co/spaces/witcherderivia/QwenStyle). If you encounter an error with the demo after generation, the reason is very likely that ZeroGPU is out-of-memory. So the solution is to just decrease the min edge (I have provided this parameter in the UI) from the default 1024 to 832 or lower. This is because HF ZeroGPU only has 70GB memory, and my dev H100 GPU has 80GB and could run these examples with a min edge of 1024 without any problem.
+## Latest News
 
-Please note that our style transfer model is based on [Qwen-Image-Edit-2509](https://huggingface.co/Qwen/Qwen-Image-Edit-2509), and has to be used with [Qwen-Image-Lightning Lora](https://huggingface.co/lightx2v/Qwen-Image-Lightning), which we have converted to Diffsynth format for compatibility.  Otherwise, the model may suffer from either low-speed or low-quality. 
+- Release a [diffuser version model](https://huggingface.co/witcherderivia/Qwen-Image-Style-Transfer/blob/main/diffusers_Qwen-Image-Edit-2509-Style-Transfer-V1.safetensors) and a [raw code](https://github.com/witcherofresearch/Qwen-Image-Style-Transfer/blob/main/diffusers_gradio.py) for using it with diffusers.
 
-![alt text](Introduction.png)
+-  Please try our free online [demo](https://huggingface.co/spaces/witcherderivia/QwenStyle). If you encounter an error with the demo after generation, the reason is very likely that ZeroGPU is out-of-memory. So the solution is to just decrease the min edge (I have provided this parameter in the UI) from the default 1024 to 832 or lower. This is because HF ZeroGPU only has 70GB memory, and my dev H100 GPU has 80GB and could run these examples with a min edge of 1024 without any problem.
+
+
+
+- Please note that our style transfer model is based on [Qwen-Image-Edit-2509](https://huggingface.co/Qwen/Qwen-Image-Edit-2509), and has to be used with [Qwen-Image-Lightning Lora](https://huggingface.co/lightx2v/Qwen-Image-Lightning), which we have converted to Diffsynth format for compatibility.  Otherwise, the model may suffer from either low-speed or low-quality. 
+
+
 
 
 ## Quick Start
