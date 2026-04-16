@@ -49,7 +49,7 @@ We release the tech report of [QwenStyle V1](https://openreview.net/forum?id=Cgb
 @article{zhang2026qwenstyle,
   title={QwenStyle: Content-Preserving Style Transfer with Qwen-Image-Edit},
   author={Zhang, Shiwen and Huang, Haibin and Zhang, Chi and Li, Xuelong},
-  journal={TeleAI},
+  journal={arXiv preprint arXiv:2601.06202},
   year={2026}
 }
 ```
