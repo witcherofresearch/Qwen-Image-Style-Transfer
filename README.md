@@ -35,9 +35,6 @@ Then run infer_style_transfer.py for inference. We have tested the model on one 
 
 Our training framework is based on [DiffSynth-Studio](https://github.com/modelscope/DiffSynth-Studio). Special thanks to the authors of DiffSynth.
 
-## Data
-
-We will open-source all our training data if the stars exceed 200. 
 
 
 
