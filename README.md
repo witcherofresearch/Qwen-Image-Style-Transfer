@@ -3,6 +3,8 @@
 For the first time, we introduce  Content-Preserving Style Transfer functionality to Qwen-Image-Edit, which supports transferring various style cues from style reference to content reference while preserving the characteristics of content reference in high efficiency, i.e. 4 sampling steps. ![alt text](Introduction.png)
 
 ## Latest News
+- Released TeleStyleV2-SenseNova, [Code](https://huggingface.co/spaces/witcherderivia/TeleStyle-SenseNova/tree/main), [Model](https://huggingface.co/Tele-AI/TeleStyleV2), [Demo](https://huggingface.co/spaces/witcherderivia/TeleStyle-SenseNova), reinforces SenseNova U1 for Content-Preserving Style Transfer and preserves its general image editing capability. This experimental model is trained in pixel space, making the sft quite hard and still having much space to improve. The model supports 1MP to 4MP.
+  
 - Released TeleStyle V2 [Code](https://github.com/Tele-AI/TeleStyleV2), [Model](https://huggingface.co/Tele-AI/TeleStyleV2), [Demo](https://huggingface.co/spaces/witcherderivia/TeleStyleV2). This model works on stylized content reference beyond photorealistic content reference via self distillation.
 
 - Release a [diffuser version model](https://huggingface.co/witcherderivia/Qwen-Image-Style-Transfer/blob/main/diffusers_Qwen-Image-Edit-2509-Style-Transfer-V1.safetensors) and a [raw code](https://github.com/witcherofresearch/Qwen-Image-Style-Transfer/blob/main/diffusers_gradio.py) for using it with diffusers.
