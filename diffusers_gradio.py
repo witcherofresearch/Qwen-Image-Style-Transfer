@@ -2,87 +2,75 @@ import gradio as gr
 import numpy as np
 import random
 import torch
-#import spaces
+import spaces
 
 from PIL import Image
 #from diffsynth.pipelines.qwen_image import QwenImagePipeline, ModelConfig
+from pipeline_qwenimage_edit_plus import QwenImageEditPlusPipeline
+from qwen_vl_utils import process_vision_info
+
+
 
 import os
+
 from huggingface_hub import  hf_hub_download
 
-import torch
-import torch.nn as nn
-from torchvision import transforms
-import torchvision.transforms.functional as F
-from model import CSD_CLIP, convert_state_dict
-from PIL import Image
-import os
-import json
-import re
-import glob
-import argparse
-
-# 初始化模型
-model = CSD_CLIP("vit_large", "default", model_path="/gemini/platform/public/aigc/cv_banc/zsw/style_transfer_ckpt/CSD_SCORE/ViT-L-14.pt")
-
-# 加载模型
-model_path = "/gemini/platform/public/aigc/cv_banc/zsw/style_transfer_ckpt/CSD_SCORE/checkpoint.pth"
-checkpoint = torch.load(model_path, map_location="cpu", weights_only=False)
-state_dict = convert_state_dict(checkpoint['model_state_dict'])
-model.load_state_dict(state_dict, strict=False)
-model = model.cuda()
-
-# 图像预处理
-normalize = transforms.Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711))
-preprocess = transforms.Compose([
-    transforms.Resize(size=224, interpolation=F.InterpolationMode.BICUBIC),
-    transforms.CenterCrop(224),
-    transforms.ToTensor(),
-    normalize,
-])
+def update_textbox(selected_items):
+    # Join the selected list of strings into a comma-separated string
+    return ", ".join(selected_items)
 
 
-#speedup = hf_hub_download(repo_id="lightx2v/Qwen-Image-Edit-2511-Lightning", filename="Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors")
-
-
-
-##diffusers
-
-import os
-import torch
-from PIL import Image
-from diffusers import QwenImageEditPlusPipeline
-from io import BytesIO
-import requests
-
-qweneditdir='/gemini/platform/public/aigc/aigc_image_datasets/huggingface/models/Qwen/Qwen-Image-Edit-2509'
-
-pipe = QwenImageEditPlusPipeline.from_pretrained(qweneditdir, torch_dtype=torch.bfloat16)
+pipe = QwenImageEditPlusPipeline.from_pretrained("Qwen/Qwen-Image-Edit-2509", torch_dtype=torch.bfloat16)
 print("pipeline loaded")
 
 pipe.to('cuda')
 pipe.set_progress_bar_config(disable=None)
 
 
+'''
+pipe = QwenImagePipeline.from_pretrained(
+    torch_dtype=torch.bfloat16,
+    device="cuda",
+    model_configs=[
+        ModelConfig(model_id="Qwen/Qwen-Image-Edit-2509", 
+        download_source='huggingface',
+        origin_file_pattern="transformer/diffusion_pytorch_model*.safetensors"),
+        ModelConfig(model_id="Qwen/Qwen-Image-Edit-2509", 
+        download_source='huggingface',origin_file_pattern="text_encoder/model*.safetensors"),
+        ModelConfig(model_id="Qwen/Qwen-Image-Edit-2509", 
+        download_source='huggingface',origin_file_pattern="vae/diffusion_pytorch_model.safetensors"),
+    ],
+    tokenizer_config=None,
+    processor_config=ModelConfig(model_id="Qwen/Qwen-Image-Edit-2509", 
+    download_source='huggingface',origin_file_pattern="processor/"),
+)
+'''
 
-lora_model='/gemini/platform/public/aigc/cv_banc/zsw/qwenimageedit/DiffSynth-Studio/models/train/diffusers_Qwen-Image-Edit-2509-Style-Transfer-V1.safetensors'
-print("loading lora")
+
+
+
+speedup = hf_hub_download(repo_id="witcherderivia/Qwen-Image-Style-Transfer", filename="diffsynth_Qwen-Image-Edit-2509-Lightning-4steps-V1.0-bf16.safetensors")
+qwenstyle= hf_hub_download(repo_id="witcherderivia/Qwen-Image-Style-Transfer", filename="diffusers_Qwen-Image-Edit-2509-Style-Transfer-V1.safetensors")
+
+
+
 
 pipe.load_lora_weights(
-    lora_model,adapter_name='style'
+    qwenstyle,adapter_name='style'
 )
 
-dmd_lora='/gemini/platform/public/aigc/cv_banc/zsw/qwenimageedit/DiffSynth-Studio/models/train/diffsynth_Qwen-Image-Edit-2509-Lightning-4steps-V1.0-bf16.safetensors'
 
 pipe.load_lora_weights(
-    dmd_lora,adapter_name='dmd'
+    speedup,adapter_name='dmd'
 )
 
 pipe.set_adapters(["style", "dmd",], adapter_weights=[1.0, 1.0])
-#pipe.fuse_lora(adapter_names=["style", "dmd"], lora_scale=1.0)
-#pipe.unload_lora_weights()
-#save_root='/gemini/platform/public/aigc/cv_banc/zsw/qwenimageedit/DiffSynth-Studio/models/train/fuse_lora_qwenstyle-qwenedit2509'
-#pipe.save_pretrained(save_root)
+pipe.fuse_lora(adapter_names=["style", "dmd"], lora_scale=1.0)
+pipe.unload_lora_weights()
+
+
+
+
 
 
 dtype = torch.bfloat16
@@ -94,7 +82,9 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 MAX_SEED = np.iinfo(np.int32).max
 
 
-#@spaces.GPU
+#@spaces.GPU(size="xlarge")
+
+
 def infer(
     content_ref,
     style_ref,
@@ -105,6 +95,7 @@ def infer(
     num_inference_steps=4,
     minedge=1024,
     progress=gr.Progress(track_tqdm=True),
+    checkbox=[],
     
 ):
     
@@ -112,8 +103,90 @@ def infer(
 
     
 
-    content_ref=Image.fromarray(content_ref)
-    style_ref=Image.fromarray(style_ref)
+    
+    content_text_input='describe main objects (fewer than 3) with separated words, each word is separated by comma,  the total number of words is strictly fewer than 3'
+    style_text_input='describe only the artistic style, material and stroke in 5 words, not objects.'
+    #pipe.text_encoder.eval()
+    content_prompt=''
+    style_prompt=''
+
+    
+    
+
+    
+
+    if content_ref is not None:
+        content_ref=Image.fromarray(content_ref)
+        content_messages = [
+        {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image",
+                        "image": content_ref,
+                    },
+                    {"type": "text", "text": content_text_input},
+                ],
+            }
+        ]
+        content_text = pipe.processor.apply_chat_template(
+            content_messages, tokenize=False, add_generation_prompt=True
+        )
+        image_inputs, video_inputs = process_vision_info(content_messages)
+        inputs = pipe.processor(
+            text=[content_text],
+            images=image_inputs,
+            videos=video_inputs,
+            padding=True,
+            return_tensors="pt",
+        )
+        inputs = inputs.to(device)
+        
+        # Inference: Generation of the output
+        generated_ids = pipe.text_encoder.generate(**inputs, max_new_tokens=1024)
+        generated_ids_trimmed = [
+            out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
+        ]
+        content_prompt = pipe.processor.batch_decode(
+            generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
+        )[0]
+        print(f"content_prompt={content_prompt}")
+    if style_ref is not None:
+        style_ref=Image.fromarray(style_ref)
+        style_messages = [
+        {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image",
+                        "image": style_ref,
+                    },
+                    {"type": "text", "text": style_text_input},
+                ],
+            }
+        ]
+        style_text = pipe.processor.apply_chat_template(
+            style_messages, tokenize=False, add_generation_prompt=True
+        )
+        image_inputs, video_inputs = process_vision_info(style_messages)
+        inputs = pipe.processor(
+            text=[style_text],
+            images=image_inputs,
+            videos=video_inputs,
+            padding=True,
+            return_tensors="pt",
+        )
+        inputs = inputs.to(device)
+        
+        # Inference: Generation of the output
+        generated_ids = pipe.text_encoder.generate(**inputs, max_new_tokens=1024)
+        generated_ids_trimmed = [
+            out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
+        ]
+        style_prompt = pipe.processor.batch_decode(
+            generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
+        )[0]
+        print(f"style_prompt={style_prompt}")
     
     if randomize_seed:
         seed = random.randint(0, MAX_SEED)
@@ -122,33 +195,69 @@ def infer(
     
     
     
+    sw,sh,w,h=0,0,0,0
+    if content_ref:
+        w,h=content_ref.size
+
+
+
+        #minedge=1024
+        if w>h:
+            r=w/h
+            h=minedge
+            w=int(h*r)-int(h*r)%16
+            
+        else:
+            r=h/w
+            w=minedge
+            h=int(w*r)-int(w*r)%16
+    if style_ref:
+        sw,sh=style_ref.size
+        if sw>sh:
+            r=sw/sh
+            sh=minedge
+            sw=int(sh*r)-int(sh*r)%16
+            
+        else:
+            r=sh/sw
+            sw=minedge
+            sh=int(sw*r)-int(sw*r)%16
+
+
     
     
-    w,h=content_ref.size
-
-
-
-    #minedge=1024
-    if w>h:
-        r=w/h
-        h=minedge
-        w=int(h*r)-int(h*r)%16
-        
-    else:
-        r=h/w
-        w=minedge
-        h=int(w*r)-int(w*r)%16
-
-
     
+    print(f"Seed: {seed}, Steps: {num_inference_steps}, Guidance: {true_guidance_scale},")
+    
+    if content_ref and style_ref:
+        images = [
+            content_ref.resize((w, h)),
+            style_ref.resize((sw, sh)) ,
+            #style_ref.resize((minedge, minedge)) ,
+        ]
+    elif content_ref:
+        images = [
+            content_ref.resize((w, h)),
+            #style_ref.resize((sw, sh)) ,
+            #style_ref.resize((minedge, minedge)) ,
+        ]
+    elif style_ref:
+        images = [
+            #content_ref.resize((w, h)),
+            style_ref.resize((sw, sh)) ,
+            #style_ref.resize((minedge, minedge)) ,
+        ]
+    
+    if "infer with content prompt" in checkbox and content_prompt not in prompt:
+        prompt=','.join([prompt,content_prompt])
+    if "infer with style prompt" in checkbox and style_prompt not in prompt:
+        prompt=','.join([prompt,style_prompt])
+    if "infer with content prompt" not in checkbox and content_prompt in prompt:
+        prompt=prompt.replace(content_prompt.strip(','),'')
+    if "infer with style prompt" not in checkbox and style_prompt in prompt:
+        prompt=prompt.replace(style_prompt.strip(),'')
+    prompt=prompt.strip(',')
     print(f"Calling pipeline with prompt: '{prompt}'")
-    
-    print(f"Seed: {seed}, Steps: {num_inference_steps}, Guidance: {true_guidance_scale}, Size: {w}x{h}")
-    
-    images = [
-        content_ref.resize((w, h)),
-        style_ref.resize((minedge, minedge)) ,
-    ]
     inputs = {
         "image": images,
         "prompt": prompt,
@@ -156,43 +265,28 @@ def infer(
         "true_cfg_scale": true_guidance_scale,
         "negative_prompt": " ",
         "num_inference_steps": num_inference_steps,
-        "guidance_scale": 1.0,
+        "guidance_scale": true_guidance_scale,
         "num_images_per_prompt": 1,
-        "width": w,
-        "height": h, 
+        "width": w or sw,
+        "height": h or sh, 
     }
     with torch.inference_mode():
         image = pipe(**inputs)
     image = image.images[0]
     
+    
 
     
     
-    # style image
-    output = preprocess(image).unsqueeze(0).to("cuda")
-    _, content_output, style_output = model(output)
-
-    # another style image
-    image1 = preprocess(style_ref).unsqueeze(0).to("cuda")
-    _, content_output1, style_output1 = model(image1)
-
-    sim = style_output@style_output1.T
-    print(sim)
 
 
-    return image, seed,sim.item()
+
+
+    return image, seed, content_prompt, style_prompt, prompt
 
 # --- Examples and UI Layout ---
 examples = []
-'''
-css = """
-#col-container {
-    margin: 0 auto;
-    max-width: 1024px;
-}
-#edit_text{margin-top: -62px !important}
-"""
-'''
+
 
 
 _HEADER_ = '''
@@ -203,10 +297,11 @@ _HEADER_ = '''
 
 
 <p style="font-size: 1rem; margin-bottom: 1.5rem;">Paper: <a href='https://openreview.net/forum?id=Cgb7JpOA5Q&referrer=%5Bthe%20profile%20of%20Shiwen%20Zhang%5D(%2Fprofile%3Fid%3D~Shiwen_Zhang1)' target='_blank'>QwenStyle: Content-Preserving Style Transfer with Qwen-Image-Edit</a> | Codes: <a href='https://github.com/witcherofresearch/Qwen-Image-Style-Transfer' target='_blank'>GitHub</a></p>
+<p style="font-size: 1rem; margin-bottom: 1.5rem;">Update: prompt enhancer provided, and the model supports content ref/style ref only input, which means you could use the model as an image editing model and style transfer model at the same time. So you don't have to provide a style reference now, the model also accepts prompt for style transfer, which makes the model more flexible.  </p>
+
+<p style="font-size: 1rem; margin-bottom: 1.5rem;">If you encounter an Error with this demo, the most possible reason is ZeroGPU out-of-memory and the solution is to decrease the Min Edge of the generated image from 1024 to a lower value.  </p>
 '''  
 
-
-#with gr.Blocks(css=css) as demo:
 with gr.Blocks() as demo:
 
     with gr.Column(elem_id="col-container"):
@@ -218,21 +313,26 @@ with gr.Blocks() as demo:
                 with gr.Row():
                     content_ref = gr.Image(label="content ref", type="numpy", )
                     style_ref = gr.Image(label="style ref", type="numpy", )
-                    print(f"type(content_ref)={type(content_ref)}")
+                    #print(f"type(content_ref)={type(content_ref)}")
                     
                 #input_images = gr.Gallery(label="Input Images", show_label=False, type="pil", interactive=True)
             
-            with gr.Column():
-                result = gr.Image(label="Result", show_label=True, type="pil")
-                sim = gr.Number(
-                        label="Style Similarity (sim)",
-                        value=0.0,
-                        precision=6,  # 保留6位小数
-                        interactive=False  # 不可编辑
-                    )
 
+            result = gr.Image(label="Result", show_label=True, type="pil")
             #result = gr.Gallery(label="Result", show_label=True, type="pil")
-        with gr.Row():
+        with gr.Column():
+            
+            checkbox=gr.CheckboxGroup(["infer with content prompt", "infer with style prompt"], label="Prompt Enhancer", )
+            content_prompt=gr.Text(
+                    label="Content Reference Prompt",
+                    show_label=True,
+                    container=True,
+            )
+            style_prompt=gr.Text(
+                    label="Style Reference Prompt",
+                    show_label=True,
+                    container=True,
+            )
             prompt = gr.Text(
                     label="Prompt",
                     value='Style Transfer the style of Figure 2 to Figure 1, and keep the content and characteristics of Figure 1.',
@@ -280,30 +380,37 @@ with gr.Blocks() as demo:
                     step=8,
                     value=1024,
                 )
-        '''
         with gr.Row(), gr.Column():
             gr.Markdown("## Examples")
             gr.Markdown("changing the minedge could lead to different style similarity.")
             default_prompt='Style Transfer the style of Figure 2 to Figure 1, and keep the content and characteristics of Figure 1.'
             gr.Examples(examples=[
-                ['./qwenstyleref/pulpfiction_2.jpg','./qwenstyleref/styleref=6_style_ref.png',default_prompt],
-                ['./qwenstyleref/styleref=0_content_ref.png','./qwenstyleref/110.png',default_prompt],
-                ['./qwenstyleref/romanholiday_1.jpg','./qwenstyleref/s0099____1113_01_query_1_img_000146_1682705733350_08158389675901344.jpg.jpg',default_prompt],
-                ['./qwenstyleref/styleref=0_content_ref.png','./qwenstyleref/125.png',default_prompt],
-                ['./qwenstyleref/fallenangle.jpg','./qwenstyleref/styleref=s0038.png',default_prompt],
-                ['./qwenstyleref/styleref=0_content_ref.png','./qwenstyleref/styleref=s0572.png',default_prompt],
-                ['./qwenstyleref/startrooper1.jpg','./qwenstyleref/david-face-760x985.jpg','Style Transfer Figure  1 into marble material.'],
-                ['./qwenstyleref/possession.png','./qwenstyleref/s0026____0907_01_query_0_img_000194_1682674358294_041656249089406583.jpeg.jpg',default_prompt],
-                ['./qwenstyleref/styleref=0_content_ref.png','./qwenstyleref/Jotarokujo.webp',default_prompt],
-                ['./qwenstyleref/wallstreet1.jpg','./qwenstyleref/034.png',default_prompt],
-                ['./qwenstyleref/bird.jpeg','./qwenstyleref/styleref=s0539.png',default_prompt],
+                ['./qwenstyleref/pulpfiction_2.jpg','./qwenstyleref/styleref=6_style_ref.png',default_prompt,123,False,1.0,4,832],
+                ['./qwenstyleref/styleref=0_content_ref.png','./qwenstyleref/110.png',default_prompt,123,False,1.0,4,832],
+                ['./qwenstyleref/romanholiday_1.jpg','./qwenstyleref/s0099____1113_01_query_1_img_000146_1682705733350_08158389675901344.jpg.jpg',default_prompt,123,False,1.0,4,800],
+                ['./qwenstyleref/styleref=0_content_ref.png','./qwenstyleref/125.png',default_prompt,123,False,1.0,4,832],
+                ['./qwenstyleref/fallenangle.jpg','./qwenstyleref/styleref=s0038.png',default_prompt,123,False,1.0,4,832],
+                ['./qwenstyleref/styleref=0_content_ref.png','./qwenstyleref/styleref=s0572.png',default_prompt,123,False,1.0,4,832],
+                ['./qwenstyleref/startrooper1.jpg','./qwenstyleref/david-face-760x985.jpg','Style Transfer Figure  1 into marble material.',123,False,1.0,4,1024],
+                ['./qwenstyleref/startrooper1.jpg','./qwenstyleref/125.png',default_prompt, 123,False,1.0,4,1024],
+                ['./qwenstyleref/possession.png','./qwenstyleref/s0026____0907_01_query_0_img_000194_1682674358294_041656249089406583.jpeg.jpg',default_prompt,123,False,1.0,4,832],
+                ['./qwenstyleref/styleref=0_content_ref.png','./qwenstyleref/Jotarokujo.webp',default_prompt,123,False,1.0,4,832],
+                ['./qwenstyleref/wallstreet1.jpg','./qwenstyleref/034.png',default_prompt,123,False,1.0,4,1024],
+                ['./qwenstyleref/bird.jpeg','./qwenstyleref/styleref=s0539.png',default_prompt,123,False,1.0,4,832],
                 
 
-                #['/gemini/platform/public/aigc/cv_banc/zsw/qwenimageedit/DiffSynth-Studio/output/testligtninglora/showlabseedstyle30k/qwenedit+showlab+seed+pretrain+style30k_eachstyleref=1comfyui_initfrom92000/step-30000.safetensors/_minedge=1024_styleref=1024_edit_image_auto_resize=False/03d90e38fc3b2016dafaa0c2df57019d/styleref=0_content_ref.png','/gemini/platform/public/aigc/cv_banc/zsw/qwenimageedit/DiffSynth-Studio/output/testligtninglora/showlabseedstyle30k/qwenedit+showlab+seed+pretrain+style30k_eachstyleref=1comfyui_initfrom92000/step-30000.safetensors/_minedge=1024_styleref=1024_edit_image_auto_resize=False/03d90e38fc3b2016dafaa0c2df57019d/styleref=8_style_ref.png',default_prompt],
-                #['/gemini/platform/public/aigc/cv_banc/zsw/qwenimageedit/DiffSynth-Studio/output/testligtninglora/showlabseedstyle30k/qwenedit+showlab+seed+pretrain+style30k_eachstyleref=1comfyui_initfrom92000/step-30000.safetensors/_minedge=1024_styleref=1024_edit_image_auto_resize=False/maxresdefault/styleref=0_content_ref.png','/gemini/platform/public/aigc/cv_banc/zsw/qwenimageedit/DiffSynth-Studio/output/testligtninglora/showlabseedstyle30k/qwenedit+showlab+seed+pretrain+style30k_eachstyleref=1comfyui_initfrom92000/step-30000.safetensors/_minedge=1024_styleref=1024_edit_image_auto_resize=False/maxresdefault/styleref=11_style_ref.png',default_prompt]
+                
                 ],
-                inputs=[content_ref,style_ref, prompt], 
-                outputs=[result, seed], 
+                inputs=[content_ref,
+                    style_ref,
+                    prompt,
+                    seed,
+                    randomize_seed,
+                    true_guidance_scale,
+                    num_inference_steps,
+                    minedge,
+                    ], 
+                outputs=[result, seed, content_prompt, style_prompt,prompt], 
                 fn=infer, 
                 cache_examples=False
                 )        
@@ -313,7 +420,6 @@ with gr.Blocks() as demo:
                 
 
         # gr.Examples(examples=examples, inputs=[prompt], outputs=[result, seed], fn=infer, cache_examples=False)
-        '''
 
     gr.on(
         triggers=[run_button.click],
@@ -327,10 +433,14 @@ with gr.Blocks() as demo:
             true_guidance_scale,
             num_inference_steps,
             minedge,
+            checkbox,
             
         ],
-        outputs=[result, seed,sim],
+        outputs=[result, seed, content_prompt, style_prompt,prompt],
     )
+
+    
+    
 
 if __name__ == "__main__":
     demo.launch(server_name='0.0.0.0')
