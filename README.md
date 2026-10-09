@@ -20,7 +20,7 @@ For the first time, we introduce  Content-Preserving Style Transfer functionalit
 
 ## Quick Start
 
-
+### infer with diffsynth
 Install DiffSynth
 ```
 git clone https://github.com/modelscope/DiffSynth-Studio.git  
@@ -33,6 +33,9 @@ Please download our style transfer lora and lightning lora from [this link](http
 
 Then run infer_style_transfer.py for inference. We have tested the model on one H100, which takes 5 seconds to generate the result.
 
+### infer with diffusers
+
+please refer to the demo https://huggingface.co/spaces/witcherderivia/QwenStyle/tree/main
 
 ## Training
 
